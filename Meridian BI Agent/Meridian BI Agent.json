@@ -1,0 +1,425 @@
+{
+  "name": "Meridian BI Agent v2",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": [
+          "app_mention"
+        ],
+        "watchWorkspace": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "85dd110a-b112-4c5e-a38c-f13609f25b11",
+      "name": "Slack Trigger",
+      "webhookId": "6284c2f0-adf5-42ae-9889-c00e41a3b141",
+      "credentials": {
+        "slackApi": {
+          "id": "GBReIqPTvi1SFuyB",
+          "name": "Meridian Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4f247766-4dc1-4c62-9fb9-772e19b682fd",
+              "leftValue": "={{ $json.thread_ts }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c793ac8e-11b4-4115-889f-639b8c3e3cf8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "replies",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Slack Trigger').item.json.channel }}",
+          "mode": "id"
+        },
+        "ts": "={{ $('Slack Trigger').item.json.thread_ts }}",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        384,
+        -160
+      ],
+      "id": "9e964b0f-e4dd-4342-becd-bf01bab506fc",
+      "name": "Fetch Thread Messages",
+      "webhookId": "0c9a536f-51c3-40bd-b227-d291362f271d",
+      "credentials": {
+        "slackApi": {
+          "id": "GBReIqPTvi1SFuyB",
+          "name": "Meridian Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format thread messages for AI context\nconst messages = $input.all();\nconst trigger = $('Slack Trigger').first().json;\n\n// Build conversation history\nlet conversationHistory = messages\n  .map(item => item.json)\n  .filter(msg => !msg.bot_id) // Exclude bot messages\n  .map(msg => msg.text.replace(/<@[A-Z0-9]+>/g, '').trim()) // Remove @mentions\n  .join('\\n\\n');\n\nreturn {\n  json: {\n    conversationHistory: conversationHistory,\n    currentMessage: trigger.text.replace(/<@[A-Z0-9]+>/g, '').trim(),\n    channel: trigger.channel,\n    thread_ts: trigger.thread_ts || trigger.ts,\n    user: trigger.user,\n    isThread: true\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        -160
+      ],
+      "id": "b3843f19-ac8b-42b4-b8c9-9ffe54a2cf1f",
+      "name": "Format Thread Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format single message (no thread)\nconst trigger = $('Slack Trigger').first().json;\n\nreturn {\n  json: {\n    conversationHistory: '',\n    currentMessage: trigger.text.replace(/<@[A-Z0-9]+>/g, '').trim(),\n    channel: trigger.channel,\n    thread_ts: trigger.ts,\n    user: trigger.user,\n    isThread: false\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        96
+      ],
+      "id": "8ef97d51-9140-4bd1-8505-21086b068b82",
+      "name": "Format Without Thread"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.isThread ? 'Previous conversation:\\\\n' + $json.conversationHistory + '\\\\n\\\\nNew message: ' + $json.currentMessage : $json.currentMessage }}",
+        "options": {
+          "systemMessage": "You are Meridian BI Agent, a helpful business intelligence assistant for Meridian Capital Partners.\n\nIMPORTANT RULES:\n1. For general knowledge questions (definitions, explanations, concepts), answer directly from your knowledge. Do NOT call any tools.\n2. Only use tools when the user asks for CURRENT/LIVE data like stock prices, company profiles, or news.\n3. Be concise and professional.\n\nTOOL USAGE - READ CAREFULLY:\n- Stock Request: ONLY for \"stock price\", \"share price\", \"how much is the stock\"\n- Company Profile: ONLY for \"tell me about\", \"company details\", \"what does X do\", \"industry\", \"market cap\"\n- Company News: ONLY for \"news\", \"headlines\", \"what's happening\", \"latest updates\", \"recent articles\". Output the formattedNews EXACTLY as received.\n   \nCRITICAL: When user asks for \"news\" - use Company News tool, NOT Stock Request.\n\nWhen you use the stock quote tool, the response field \"c\" is the current price."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "6698026a-e396-4a8a-aae4-52b11a001bf2",
+      "name": "Meridian Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        704,
+        112
+      ],
+      "id": "b2ae9827-65bf-45b4-84a4-9f99809c0045",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "oUdsBzlG6spgB8wZ",
+          "name": "Meridian Groq"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Slack Trigger').item.json.channel }}",
+          "mode": "id"
+        },
+        "text": "={{ $json.output }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $('Slack Trigger').item.json.thread_ts || $('Slack Trigger').item.json.ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1184,
+        -96
+      ],
+      "id": "3e91acce-f7fa-4043-ad6b-6272fc4d7f06",
+      "name": "Send Response",
+      "webhookId": "bb242109-4630-42db-b860-a3111a9e98e5",
+      "credentials": {
+        "slackApi": {
+          "id": "GBReIqPTvi1SFuyB",
+          "name": "Meridian Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.thread_ts || $json.channel }}",
+        "sessionTTL": 3600
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        864,
+        112
+      ],
+      "id": "95bf8027-b81f-4edd-8ff3-8d52b2019659",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "V8XAAw0ymjDanERo",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Get company profile information including sector, industry, market cap, and financial metrics. Use this when the user asks about a company's details, profile, industry, market cap, or wants general information about a company.",
+        "url": "=https://finnhub.io/api/v1/stock/profile2?symbol={{ $fromAI('symbol', 'AAPL', 'string', 'Stock ticker symbol like AAPL, MSFT, TSLA') }}&token=d6vs8qhr01qiiutcv5ggd6vs8qhr01qiiutcv5h0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1136,
+        112
+      ],
+      "id": "8da86103-4cd1-4486-8a98-66de27c01624",
+      "name": "Company Profile"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Get ONLY the current stock PRICE for a company. Use this ONLY when the user specifically asks for stock price, share price, or how much a stock costs. Do NOT use this for news, company info, or any other request.",
+        "url": "=https://finnhub.io/api/v1/quote?symbol={{ $fromAI('symbol', 'AAPL', 'string', 'Stock ticker symbol like AAPL, MSFT, TSLA') }}&token=d6vs8qhr01qiiutcv5ggd6vs8qhr01qiiutcv5h0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1008,
+        112
+      ],
+      "id": "9b460f4f-3c70-4cd1-bb8a-1c683659499f",
+      "name": "Stock Request"
+    },
+    {
+      "parameters": {
+        "description": "Get the latest NEWS articles about a company. Use this when the user asks about news, headlines, recent articles, what's happening, or updates about a company. Returns 5 headlines with URLs. Output the formattedNews field EXACTLY as received.",
+        "workflowId": {
+          "__rl": true,
+          "value": "rcM9VaW96DtSjxAV",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/rcM9VaW96DtSjxAV",
+          "cachedResultName": "News Fetcher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "symbol": "={{ $fromAI('symbol', 'AAPL', 'string', 'Stock ticker symbol like AAPL, MSFT, TSLA') }}"
+          },
+          "matchingColumns": [
+            "symbol"
+          ],
+          "schema": [
+            {
+              "id": "symbol",
+              "displayName": "symbol",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        112
+      ],
+      "id": "d9843d57-ed9f-45cb-bb28-ec763b079bc2",
+      "name": "Company News"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Slack Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Fetch Thread Messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Without Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Thread Messages": {
+      "main": [
+        [
+          {
+            "node": "Format Thread Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Thread Context": {
+      "main": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Without Thread": {
+      "main": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meridian Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Profile": {
+      "ai_tool": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock Request": {
+      "ai_tool": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company News": {
+      "ai_tool": [
+        [
+          {
+            "node": "Meridian Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b25801e9-e8f1-4e69-876e-9b4b9d977381",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7876ddd80ac4dfc081644c1e53faeb633ea0a55f7db025f689a4aa2527bcc92f"
+  },
+  "id": "6ep2kzF9YGwwCqVQ",
+  "tags": []
+}
