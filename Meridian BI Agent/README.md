@@ -9,6 +9,9 @@
 
 The workflow is designed to be **context-aware**, **tool-efficient**, and **thread-sensitive**, making it suitable for real-time business intelligence interactions.
 
+![alt text](image.png)
+
+![alt text](image-1.png)
 ---
 
 ## ⚙️ Architecture Summary
