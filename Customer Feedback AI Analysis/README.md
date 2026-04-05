@@ -18,6 +18,8 @@ This creates a simple **AI-powered customer feedback tracking system**.
 
 # 2. Workflow Architecture
 
+![alt text](image.png)
+
 ## Workflow Flow
 
 The workflow follows this sequence:
