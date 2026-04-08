@@ -9,10 +9,11 @@ A collection of AI-powered automation systems built with n8n, Groq, OpenAI, and 
 I help businesses replace manual, repetitive processes with intelligent systems that run themselves. My focus is always on the full picture: the automation, the reasoning behind it, the edge cases, and the outcome for the business.
 
 ### AI Agents & Chatbots
-- Conversational agents with memory and context awareness
-- Slack-integrated BI assistants with live data tools
-- Customer support bots with smart routing and escalation logic
-- Lead qualification flows with scoring and automated outreach
+- Autonomous agents with memory, tool use, and decision-making logic
+- Lead qualification and scoring agents that run 24/7
+- Customer support agents with escalation handling
+- Business intelligence agents that surface insights from live data
+- RAG pipelines with semantic search and document ingestion
 
 ### Business Process Automation
 - End-to-end workflow automation with n8n
